@@ -22,12 +22,13 @@
             formData.append("file", fileInput.files[0]);
 
             try {
-                const res = await fetch("https://maqam-classifier.onrender.com/predict", {
+                const res = await fetch("/predict", {
                     method: "POST",
                     body: formData
                 });
                 const data = await res.json();
-                document.getElementById("result").innerText = "Predicted Maqam: " + data.result;
+                document.getElementById("result").innerText = 
+                    data.result ? "Predicted Maqam: " + data.result : "Error: " + data.error;
             } catch (err) {
                 console.error(err);
                 alert("Error uploading file");
