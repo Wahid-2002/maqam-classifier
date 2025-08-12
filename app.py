@@ -1,69 +1,38 @@
 from fastapi import FastAPI, File, UploadFile
-from fastapi.responses import HTMLResponse, FileResponse, JSONResponse
-from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import HTMLResponse
 import joblib
 import librosa
 import numpy as np
-import uvicorn
-import os
-import shutil
 
-# -----------------------------
-# Load model
-# -----------------------------
-MODEL_PATH = "model.pkl"
-model = joblib.load(MODEL_PATH)
-
-# -----------------------------
-# Create app
-# -----------------------------
 app = FastAPI()
 
-# Allow CORS (optional since HTML will be served from same domain)
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+# Load trained model
+model = joblib.load("model.pkl")
 
-# -----------------------------
-# Serve HTML
-# -----------------------------
+# Root - show frontend
 @app.get("/", response_class=HTMLResponse)
-async def serve_home():
-    return FileResponse("index.html")
+def home():
+    with open("index.html", "r", encoding="utf-8") as f:
+        return f.read()
 
-# -----------------------------
-# Prediction endpoint
-# -----------------------------
+# Predict endpoint
 @app.post("/predict")
 async def predict(file: UploadFile = File(...)):
     try:
         # Save uploaded file temporarily
-        temp_file = f"temp_{file.filename}"
-        with open(temp_file, "wb") as buffer:
-            shutil.copyfileobj(file.file, buffer)
+        contents = await file.read()
+        with open("temp_audio.wav", "wb") as f:
+            f.write(contents)
 
         # Extract features
-        y, sr = librosa.load(temp_file, mono=True, duration=30)
-        mfcc = librosa.feature.mfcc(y=y, sr=sr, n_mfcc=13)
-        mfcc_mean = np.mean(mfcc.T, axis=0).reshape(1, -1)
+        y, sr = librosa.load("temp_audio.wav", duration=30)
+        mfccs = np.mean(librosa.feature.mfcc(y=y, sr=sr, n_mfcc=40).T, axis=0)
+        features = mfccs.reshape(1, -1)
 
-        # Predict
-        prediction = model.predict(mfcc_mean)[0]
+        # Predict maqam
+        prediction = model.predict(features)[0]
 
-        # Cleanup
-        os.remove(temp_file)
-
-        return JSONResponse({"maqam": str(prediction)})
+        return {"result": prediction}
 
     except Exception as e:
-        return JSONResponse({"error": str(e)}, status_code=500)
-
-# -----------------------------
-# Local run
-# -----------------------------
-if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+        return {"error": str(e)}
