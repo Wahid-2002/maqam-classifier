@@ -1,6 +1,5 @@
 fastapi
 uvicorn
-joblib
 librosa
 numpy
 scikit-learn
