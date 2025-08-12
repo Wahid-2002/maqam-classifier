@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Arabic Maqam Classifier</title>
+</head>
+<body>
+    <h1>Upload an audio file to classify</h1>
+    <form id="uploadForm">
+        <input type="file" id="audioFile" name="file" accept=".mp3,.wav" required>
+        <button type="submit">Upload & Classify</button>
+    </form>
+    <p id="result"></p>
+
+    <script>
+        document.getElementById('uploadForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const fileInput = document.getElementById('audioFile');
+            if (!fileInput.files.length) {
+                alert('Please select a file');
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append("file", fileInput.files[0]);
+
+            const res = await fetch("/predict", {
+                method: "POST",
+                body: formData
+            });
+
+            const data = await res.json();
+            document.getElementById('result').textContent =
+                data.maqam ? `Predicted Maqam: ${data.maqam}` : `Error: ${data.error}`;
+        });
+    </script>
+</body>
+</html>
