@@ -1,8 +1,7 @@
 fastapi
 uvicorn
+joblib
 librosa
 numpy
-scikit-learn==1.6.1
-joblib
-soundfile
+scikit-learn
 python-multipart
