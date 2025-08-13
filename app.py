@@ -1,37 +1,48 @@
-import pickle
+from fastapi import FastAPI, File, UploadFile
+from fastapi.responses import HTMLResponse, FileResponse, JSONResponse
+from fastapi.middleware.cors import CORSMiddleware
+import joblib
 import librosa
 import numpy as np
-from fastapi import FastAPI, UploadFile, File
 import uvicorn
+import os, shutil
 
-MODEL_PATH = "model.pkl"
+MODEL_PATH = "model.pkl"                # <- your existing file
+model = joblib.load(MODEL_PATH)         # <- IMPORTANT: joblib.load
 
-# Load model
-with open(MODEL_PATH, "rb") as f:
-    model = pickle.load(f)
+app = FastAPI(title="Arabic Maqam Classifier")
 
-app = FastAPI()
+# (Optional but harmless) – allows browser requests
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
-def extract_features(file_path):
-    y, sr = librosa.load(file_path, duration=30)
-    mfcc = librosa.feature.mfcc(y=y, sr=sr, n_mfcc=13)
-    return np.mean(mfcc.T, axis=0)
+@app.get("/", response_class=HTMLResponse)
+def home():
+    return FileResponse("index.html")
 
-@app.get("/")
-def root():
-    return {"message": "Arabic Maqam Classifier API is running"}
+def extract_features(path):
+    y, sr = librosa.load(path, mono=True, duration=30)
+    mfcc = librosa.feature.mfcc(y=y, sr=sr, n_mfcc=20)
+    return np.mean(mfcc.T, axis=0).reshape(1, -1)
 
 @app.post("/predict")
 async def predict(file: UploadFile = File(...)):
-    # Save temp file
-    with open("temp_audio", "wb") as f:
-        f.write(await file.read())
+    try:
+        tmp = f"tmp_{file.filename}"
+        with open(tmp, "wb") as f:
+            f.write(await file.read())
 
-    # Extract features & predict
-    features = extract_features("temp_audio").reshape(1, -1)
-    prediction = model.predict(features)[0]
+        feats = extract_features(tmp)
+        pred = model.predict(feats)[0]
+        os.remove(tmp)
 
-    return {"maqam": prediction}
+        return {"maqam": str(pred)}
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=10000)
