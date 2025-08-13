@@ -1,39 +1,27 @@
 <!DOCTYPE html>
 <html>
-<head>
-    <title>Arabic Maqam Classifier</title>
-</head>
+<head><meta charset="utf-8"><title>Maqam Classifier</title></head>
 <body>
-    <h2>Upload an audio file to classify</h2>
-    <input type="file" id="fileInput" accept=".mp3,.wav">
-    <button id="uploadBtn">Upload & Classify</button>
+  <h2>Upload an audio file (.wav or .mp3)</h2>
+  <input type="file" id="file" accept=".wav,.mp3">
+  <button id="go">Upload & Classify</button>
+  <pre id="out"></pre>
 
-    <h3 id="result"></h3>
-
-    <script>
-        document.getElementById("uploadBtn").addEventListener("click", async () => {
-            const fileInput = document.getElementById("fileInput");
-            if (!fileInput.files.length) {
-                alert("Please select a file first");
-                return;
-            }
-
-            const formData = new FormData();
-            formData.append("file", fileInput.files[0]);
-
-            try {
-                const res = await fetch("/predict", {
-                    method: "POST",
-                    body: formData
-                });
-                const data = await res.json();
-                document.getElementById("result").innerText = 
-                    data.result ? "Predicted Maqam: " + data.result : "Error: " + data.error;
-            } catch (err) {
-                console.error(err);
-                alert("Error uploading file");
-            }
-        });
-    </script>
+  <script>
+    const btn = document.getElementById('go');
+    const out = document.getElementById('out');
+    btn.addEventListener('click', async () => {
+      const f = document.getElementById('file').files[0];
+      if (!f) { alert('Choose a file first'); return; }
+      btn.disabled = true; out.textContent = 'Uploading...';
+      try {
+        const fd = new FormData(); fd.append('file', f);
+        const res = await fetch(window.location.origin + '/predict', { method: 'POST', body: fd });
+        const data = await res.json();
+        out.textContent = JSON.stringify(data, null, 2);
+      } catch (e) { out.textContent = 'Error: ' + e; }
+      finally { btn.disabled = false; }
+    });
+  </script>
 </body>
 </html>
